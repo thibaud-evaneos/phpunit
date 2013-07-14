@@ -146,7 +146,6 @@
     <dir name="Runner">
      <dir name="Configuration">
       <dir name="Loader">
-       <file baseinstalldir="/" name="CLI.php" role="php" />
        <file baseinstalldir="/" name="XML.php" role="php" />
       </dir>
       <dir name="Writer">

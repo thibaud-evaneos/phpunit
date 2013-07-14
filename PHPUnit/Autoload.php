@@ -171,7 +171,6 @@ spl_autoload_register(
             'phpunit_framework_warning' => '/Framework/Warning.php',
             'phpunit_runner_basetestrunner' => '/Runner/BaseTestRunner.php',
             'phpunit_runner_configuration' => '/Runner/Configuration.php',
-            'phpunit_runner_configuration_loader_cli' => '/Runner/Configuration/Loader/CLI.php',
             'phpunit_runner_configuration_loader_xml' => '/Runner/Configuration/Loader/XML.php',
             'phpunit_runner_configuration_writer_xml' => '/Runner/Configuration/Writer/XML.php',
             'phpunit_runner_exception' => '/Runner/Exception.php',

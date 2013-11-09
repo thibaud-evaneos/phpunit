@@ -132,10 +132,19 @@ class PHPUnit_Util_TestDox_NamePrettifier
         $wasNumeric = FALSE;
 
         for ($i = $offset; $i < $max; $i++) {
-            if ($i > $offset &&
-                ord($name[$i]) >= 65 &&
-                ord($name[$i]) <= 90) {
-                $buffer .= ' ' . strtolower($name[$i]);
+            if ($i > $offset && $this->isUpperCaseChar($name[$i])) {
+                if ($i + 1 < $max &&
+                    ($this->isUpperCaseChar($name[$i + 1]) || is_numeric($name[$i + 1]))) {
+
+                    if ($i - 1 < $offset || !$this->isUpperCaseChar($name[$i - 1])) {
+                        $buffer .= ' ';
+                    }
+
+                    $buffer .= $name[$i];
+                }
+                else {
+                    $buffer .= ' ' . strtolower($name[$i]);
+                }
             } else {
                 $isNumeric = is_numeric($name[$i]);
 
@@ -153,6 +162,10 @@ class PHPUnit_Util_TestDox_NamePrettifier
         }
 
         return $buffer;
+    }
+
+    private function isUpperCaseChar($char) {
+        return ord($char) >= 65 && ord($char) <= 90;
     }
 
     /**

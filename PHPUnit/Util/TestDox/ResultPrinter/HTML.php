@@ -128,7 +128,7 @@ class PHPUnit_Util_TestDox_ResultPrinter_HTML extends PHPUnit_Util_TestDox_Resul
      */
     protected function endRun()
     {
-        $this->write('<html>');
+        $this->write('<!DOCTYPE html><html lang="en">');
 
         $this->write('<head>');
         $this->write('<link href="http://netdna.bootstrapcdn.com/bootstrap/3.0.2/css/bootstrap.min.css" rel="stylesheet">');
@@ -136,7 +136,6 @@ class PHPUnit_Util_TestDox_ResultPrinter_HTML extends PHPUnit_Util_TestDox_Resul
 
         $this->write('<body><div class="container">');
         $this->write('<div class="page-header"><h1>Test results</h1>');
-        $this->write('<h2>Quick summary</h2>');
 
         if ($this->failureCount) {
             $plural = ($this->failureCount == 1) ? '' : 's';
@@ -154,22 +153,51 @@ class PHPUnit_Util_TestDox_ResultPrinter_HTML extends PHPUnit_Util_TestDox_Resul
 
         $this->write('</div>');
 
-        foreach ($this->classes as $name => $prettyName) {
+        $this->write('<h2>Table of Contents</h2><ul class="list-group">');
 
-            $this->write('<h2 id="' . $name . '">' . $prettyName . '</h2>');
+        foreach ($this->classes as $name => $prettyName) {
+            $class = '';
+            $linkClass = '';
+            $danger = false;
+            $warning = false;
+
+            if (!count($this->successes[$name]) && count($this->failures[$name])) {
+                $danger = true;
+                $class = ' alert alert-danger';
+                $linkClass = 'alert-link';
+            }
+            elseif (count($this->failures[$name])) {
+                $class = ' alert alert-warning';
+                $warning = true;
+                $linkClass = 'alert-link';
+            }
+
+            $this->write('<li class="list-group-item' . $class . '">');
+            if ($danger) {
+                $this->write('<span class="pull-right label label-danger">Danger</span>');
+            } elseif ($warning) {
+                $this->write('<span class="pull-right label label-warning">Warning</span>');
+            } else {
+                $this->write('<span class="pull-right label label-success">Success</span>');
+            }
+            $this->write('&nbsp;<a href="#' .$name . '" class="' . $linkClass . '">' . $prettyName . '</a>');
+            $this->write('</li>');
+        }
+
+        $this->write('</ul>');
+
+        foreach ($this->classes as $name => $prettyName) {
+            $this->write('<a id="' . $name . '"><h2 id="' . $name . '">' . $prettyName . '</h2></a><ul class="list-group">');
 
             if (count($this->failures[$name])) {
-                $this->write('<b>Failures</b><ul>');
                 foreach ($this->failures[$name] as $test) {
-                    $this->write('<li>' . $test . '</li>');
+                    $this->write('<li class="list-group-item alert alert-danger"><span class="glyphicon glyphicon-unchecked"></span>&nbsp;' . $test . '</li>');
                 }
-                $this->write('</ul>');
             }
 
             if (count($this->successes[$name])) {
-                $this->write('<b>Successes</b><ul>');
                 foreach ($this->successes[$name] as $test) {
-                    $this->write('<li>' . $test . '</li>');
+                    $this->write('<li class="list-group-item"><span class="glyphicon glyphicon-check"></span>&nbsp;' . $test . '</li>');
                 }
             }
 

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * PHPUnit
  *
@@ -46,78 +47,135 @@
 /**
  * Prints TestDox documentation in HTML format.
  *
- * @package    PHPUnit
+ * @package PHPUnit
  * @subpackage Util_TestDox
- * @author     Sebastian Bergmann <sebastian@phpunit.de>
- * @copyright  2001-2013 Sebastian Bergmann <sebastian@phpunit.de>
- * @license    http://www.opensource.org/licenses/BSD-3-Clause  The BSD 3-Clause License
- * @link       http://www.phpunit.de/
- * @since      Class available since Release 2.1.0
+ * @author Sebastian Bergmann <sebastian@phpunit.de>
+ * @copyright 2001-2013 Sebastian Bergmann <sebastian@phpunit.de>
+ * @license http://www.opensource.org/licenses/BSD-3-Clause The BSD 3-Clause License
+ * @link http://www.phpunit.de/
+ * @since Class available since Release 2.1.0
  */
 class PHPUnit_Util_TestDox_ResultPrinter_HTML extends PHPUnit_Util_TestDox_ResultPrinter
 {
+    private $currentClass;
+
+    private $classes = array();
+
+    private $failures = array();
+
+    private $successes = array();
+
+    private $failureCount = 0;
+
+    private $successCount = 0;
+
     /**
-     * @var    boolean
+     *
+     * @var boolean
      */
     protected $printsHTML = TRUE;
 
     /**
      * Handler for 'start run' event.
-     *
      */
     protected function startRun()
     {
-        $this->write('<html><body>');
+
     }
 
     /**
      * Handler for 'start class' event.
      *
-     * @param  string $name
+     * @param string $name
      */
     protected function startClass($name)
     {
-        $this->write(
-          '<h2 id="' . $name . '">' . $this->currentTestClassPrettified .
-          '</h2><ul>'
-        );
+        $this->currentClass = $name;
+
+        $this->classes[$name] = $this->currentTestClassPrettified;
+        $this->failures[$name] = array();
+        $this->successes[$name] = array();
     }
 
     /**
      * Handler for 'on test' event.
      *
-     * @param  string  $name
-     * @param  boolean $success
+     * @param string $name
+     * @param boolean $success
      */
     protected function onTest($name, $success = TRUE)
     {
-        if (!$success) {
-            $strikeOpen  = '<strike>';
-            $strikeClose = '</strike>';
-        } else {
-            $strikeOpen  = '';
-            $strikeClose = '';
+        if (! $success) {
+            $this->failureCount++;
+            $this->failures[$this->currentClass][] = $name;
         }
-
-        $this->write('<li>' . $strikeOpen . $name . $strikeClose . '</li>');
+        else {
+            $this->successCount++;
+            $this->successes[$this->currentClass][] = $name;
+        }
     }
 
     /**
      * Handler for 'end class' event.
      *
-     * @param  string $name
+     * @param string $name
      */
     protected function endClass($name)
-    {
-        $this->write('</ul>');
-    }
+    {}
 
     /**
      * Handler for 'end run' event.
-     *
      */
     protected function endRun()
     {
-        $this->write('</body></html>');
+        $this->write('<html>');
+
+        $this->write('<head>');
+        $this->write('<link href="http://netdna.bootstrapcdn.com/bootstrap/3.0.2/css/bootstrap.min.css" rel="stylesheet">');
+        $this->write('</head>');
+
+        $this->write('<body><div class="container">');
+        $this->write('<div class="page-header"><h1>Test results</h1>');
+        $this->write('<h2>Quick summary</h2>');
+
+        if ($this->failureCount) {
+            $plural = ($this->failureCount == 1) ? '' : 's';
+            $this->write('<div class="alert alert-danger">' . $this->failureCount . ' test' . $plural . ' failed</div>');
+        }
+
+        if ($this->successCount) {
+            $plural = ($this->successCount == 1) ? '' : 's';
+            $this->write('<div class="alert alert-success">' . $this->successCount . ' test' . $plural . ' passed</div>');
+        }
+
+        if (!$this->failureCount && !$this->successCount) {
+            $this->write('<div class="alert alert-info">No tests were run</div>');
+        }
+
+        $this->write('</div>');
+
+        foreach ($this->classes as $name => $prettyName) {
+
+            $this->write('<h2 id="' . $name . '">' . $prettyName . '</h2>');
+
+            if (count($this->failures[$name])) {
+                $this->write('<b>Failures</b><ul>');
+                foreach ($this->failures[$name] as $test) {
+                    $this->write('<li>' . $test . '</li>');
+                }
+                $this->write('</ul>');
+            }
+
+            if (count($this->successes[$name])) {
+                $this->write('<b>Successes</b><ul>');
+                foreach ($this->successes[$name] as $test) {
+                    $this->write('<li>' . $test . '</li>');
+                }
+            }
+
+            $this->write('</ul>');
+        }
+
+        $this->write('</div></body></html>');
     }
 }

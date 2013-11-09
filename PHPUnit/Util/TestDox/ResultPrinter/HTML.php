@@ -166,10 +166,16 @@ class PHPUnit_Util_TestDox_ResultPrinter_HTML extends PHPUnit_Util_TestDox_Resul
                 <head>
                     <link href="http://netdna.bootstrapcdn.com/bootstrap/3.0.2/css/bootstrap.min.css" rel="stylesheet">
                     <style type="text/css">
-                        .list-item-group .list-item { margin-top: 1em; }
+                        @keyframes toggleHoverSuccess { from { background-color: #dff0d8 } to { background-color: inherit } }
+                        @-webkit-keyframes toggleHoverSuccess { from { background-color: #dff0d8 } to { background-color: inherit } }
+                        @keyframes toggleHoverError { from { background-color: #f2dede } to { background-color: inherit } }
+                        @-webkit-keyframes toggleHoverError { from { background-color: #f2dede } to { background-color: inherit } }
+                        .list-group-item .list-item { margin-top: 1em; }
                         .list-item .well.well-sm { margin-top: 1em; }
-                        .list-hover > .list-item-group { display: none; }
-                        .list-hover:hover > .list-item-group { display: block; }
+                        .list-hover > .sublist { display: none; }
+                        .list-hover:hover > .sublist { display: block; }
+                        .list-hover.alert-success:hover { -webkit-animation: toggleHoverSuccess 2s; animation: toggleHoverSuccess 2s; }
+                        .list-hover.alert-warning:hover { -webkit-animation: toggleHoverError 2s; animation: toggleHoverError 2s; }
                         .glyphicon.glyphicon-unchecked.alert-danger { background-color: inherit !important }
                     </style>
                 </head>
@@ -213,6 +219,9 @@ EOR;
                 $warning = true;
                 $linkClass = 'alert-link';
             }
+            else {
+                $class = ' alert alert-success';
+            }
 
             $this->write('<div class="list-hover list-group-item' . $class . '">');
             if ($danger) {
@@ -227,7 +236,7 @@ EOR;
             $this->write('&nbsp;<a href="#' . $name . '" class="' . $linkClass . '">' . $prettyName . '</a>');
 
             if (count($this->failures[$name])) {
-                $this->write('<div class="list-item-group">');
+                $this->write('<div class="sublist">');
                 foreach ($this->failures[$name] as $test) {
                     $this->write(
                         '<div class="list-item"><span class="glyphicon glyphicon-unchecked"></span>&nbsp;' . $test .
@@ -284,7 +293,7 @@ EOR;
         if (! count($errors))
             return;
 
-        $this->write('<div class="list-item-group">');
+        $this->write('<div class="sublist">');
 
         foreach ($errors as $error) {
             if ($error instanceof PHPUnit_Framework_AssertionFailedError) {

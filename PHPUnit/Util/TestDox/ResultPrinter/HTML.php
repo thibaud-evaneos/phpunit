@@ -1,5 +1,8 @@
 <?php
 
+require_once __DIR__ . '/HTML/TestResult.php';
+require_once __DIR__ . '/HTML/ClassResult.php';
+
 /**
  * PHPUnit
  *
@@ -38,6 +41,7 @@
  * @package    PHPUnit
  * @subpackage Util_TestDox
  * @author     Sebastian Bergmann <sebastian@phpunit.de>
+ * @author     Thibaud Fabre <thibaud@evaneos.com>
  * @copyright  2001-2013 Sebastian Bergmann <sebastian@phpunit.de>
  * @license    http://www.opensource.org/licenses/BSD-3-Clause  The BSD 3-Clause License
  * @link       http://www.phpunit.de/
@@ -58,23 +62,23 @@
 class PHPUnit_Util_TestDox_ResultPrinter_HTML extends PHPUnit_Util_TestDox_ResultPrinter
 {
 
-    private $currentClass;
+    /**
+     *
+     * @var PHPUnit_Util_TestDox_ResultPrinter_HTML_ClassResult
+     */
+    private $currentClass = null;
 
+    /**
+     *
+     * @var PHPUnit_Util_TestDox_ResultPrinter_HTML_TestResult
+     */
+    private $currentTest = null;
+
+    /**
+     *
+     * @var PHPUnit_Util_TestDox_ResultPrinter_HTML_ClassResult[]
+     */
     private $classes = array();
-
-    private $failures = array();
-
-    private $successes = array();
-
-    private $durations = array();
-
-    private $errors = array();
-
-    private $currentTestStart = array();
-
-    private $failureCount = 0;
-
-    private $successCount = 0;
 
     /**
      *
@@ -95,64 +99,51 @@ class PHPUnit_Util_TestDox_ResultPrinter_HTML extends PHPUnit_Util_TestDox_Resul
      */
     protected function startClass($name)
     {
-        $this->currentClass = $name;
+        $classResult = new PHPUnit_Util_TestDox_ResultPrinter_HTML_ClassResult($name);
 
-        $this->classes[$name] = $this->currentTestClassPrettified;
-        $this->failures[$name] = array();
-        $this->successes[$name] = array();
-        $this->durations[$name] = array();
-        $this->errors[$name] = array();
+        $this->currentClass = $classResult;
+        $this->classes[$name] = $classResult;
+    }
+
+    public function startTest(PHPUnit_Framework_Test $test)
+    {
+        parent::startTest($test);
+
+        $result = new PHPUnit_Util_TestDox_ResultPrinter_HTML_TestResult($this->currentTestClassPrettified,
+            $this->currentTestMethodPrettified);
+
+        if ($test instanceof PHPUnit_Framework_TestCase &&
+            ! $test instanceof PHPUnit_Framework_Warning) {
+            $annotations = $test->getAnnotations();
+
+            if (isset($annotations['method']['dataProvider'])) {
+                $result->enableDatasets();
+            }
+        }
+
+        $this->currentClass->addTest($result);
+        $this->currentTest = $result;
+    }
+
+    public function endTest(PHPUnit_Framework_Test $test, $time)
+    {
+        $this->currentTest->setDuration($time);
+        $this->currentTest = null;
+
+        parent::endTest($test, $time);
     }
 
     public function addError(PHPUnit_Framework_Test $test, Exception $e, $time)
     {
-        $this->errors[$this->currentClass][$this->currentTestMethodPrettified][] = $e;
+        $this->currentTest->addError($e);
         parent::addError($test, $e, $time);
     }
 
     public function addFailure(PHPUnit_Framework_Test $test, PHPUnit_Framework_AssertionFailedError $e, $time)
     {
-        $this->errors[$this->currentClass][$this->currentTestMethodPrettified][] = $e;
+        $this->currentTest->addFailure($e);
         parent::addFailure($test, $e, $time);
     }
-
-    public function startTest(PHPUnit_Framework_Test $test)
-    {
-        $this->errors[$this->currentClass][$this->currentTestMethodPrettified] = array();
-        parent::startTest($test);
-    }
-
-    public function endTest(PHPUnit_Framework_Test $test, $time)
-    {
-        $this->durations[$this->currentClass][$this->currentTestMethodPrettified] = $time;
-        parent::endTest($test, $time);
-    }
-
-    /**
-     * Handler for 'on test' event.
-     *
-     * @param string $name
-     * @param boolean $success
-     */
-    protected function onTest($name, $success = TRUE)
-    {
-        if (! $success) {
-            $this->failureCount ++;
-            $this->failures[$this->currentClass][] = $name;
-        }
-        else {
-            $this->successCount ++;
-            $this->successes[$this->currentClass][] = $name;
-        }
-    }
-
-    /**
-     * Handler for 'end class' event.
-     *
-     * @param string $name
-     */
-    protected function endClass($name)
-    {}
 
     /**
      * Handler for 'end run' event.
@@ -164,7 +155,7 @@ class PHPUnit_Util_TestDox_ResultPrinter_HTML extends PHPUnit_Util_TestDox_Resul
         $head = <<<EOR
             <!DOCTYPE html><html lang="en">
                 <head>
-                    <link href="http://netdna.bootstrapcdn.com/bootstrap/3.0.2/css/bootstrap.min.css" rel="stylesheet">
+                    <link href="bootstrap/3.0.2/css/bootstrap.min.css" rel="stylesheet">
                     <style type="text/css">
                         @keyframes toggleHoverSuccess { from { background-color: #dff0d8 } to { background-color: inherit } }
                         @-webkit-keyframes toggleHoverSuccess { from { background-color: #dff0d8 } to { background-color: inherit } }
@@ -176,11 +167,11 @@ class PHPUnit_Util_TestDox_ResultPrinter_HTML extends PHPUnit_Util_TestDox_Resul
                         .list-hover:hover > .sublist { display: block; }
                         .list-hover.alert-success:hover { -webkit-animation: toggleHoverSuccess 2s; animation: toggleHoverSuccess 2s; }
                         .list-hover.alert-warning:hover { -webkit-animation: toggleHoverError 2s; animation: toggleHoverError 2s; }
-                        .glyphicon.glyphicon-unchecked.alert-danger { background-color: inherit !important }
+                        .glyphicon.alert-danger, .glyphicon.alert-info, .glyphicon.alert-success { background-color: inherit !important }
                     </style>
                 </head>
                 <body><div class="container">
-                <div class="page-header"><h1>Test results</h1>
+                <div class="page-header"><h1>Test results<span></h1>
 EOR;
         $this->write($head);
 
@@ -200,84 +191,75 @@ EOR;
         }
 
         $this->write('</div>');
-
         $this->write('<h2>Table of Contents</h2><div class="list-group">');
 
-        foreach ($this->classes as $name => $prettyName) {
+        foreach ($this->classes as $name => $classResult) {
             $class = '';
             $linkClass = '';
-            $danger = false;
-            $warning = false;
+            $badge = '';
 
-            if (! count($this->successes[$name]) && count($this->failures[$name])) {
+            if (! $classResult->hasSuccesses() && $classResult->hasErrors()) {
                 $danger = true;
-                $class = ' alert alert-danger';
+                $class = 'alert alert-danger';
                 $linkClass = 'alert-link';
+                $badge = '<span class="pull-right label label-danger">Danger</span>';
             }
-            elseif (count($this->failures[$name])) {
-                $class = ' alert alert-warning';
+            elseif ($classResult->hasErrors()) {
+                $class = 'alert alert-warning';
                 $warning = true;
                 $linkClass = 'alert-link';
+                $badge = '<span class="pull-right label label-warning">Warning</span>';
             }
             else {
-                $class = ' alert alert-success';
+                $class = 'alert alert-success';
+                $badge = '<span class="pull-right label label-success">Success</span>';
             }
 
-            $this->write('<div class="list-hover list-group-item' . $class . '">');
-            if ($danger) {
-                $this->write('<span class="pull-right label label-danger">Danger</span>');
-            }
-            elseif ($warning) {
-                $this->write('<span class="pull-right label label-warning">Warning</span>');
-            }
-            else {
-                $this->write('<span class="pull-right label label-success">Success</span>');
-            }
-            $this->write('&nbsp;<a href="#' . $name . '" class="' . $linkClass . '">' . $prettyName . '</a>');
+            $this->write('<div class="list-hover list-group-item ' . $class . '">');
+            $this->write($badge);
+            $this->write('&nbsp;<a href="#' . $name . '" class="' . $linkClass . '">' . $classResult->getClassName() . '</a>');
 
-            if (count($this->failures[$name])) {
-                $this->write('<div class="sublist">');
-                foreach ($this->failures[$name] as $test) {
-                    $this->write(
-                        '<div class="list-item"><span class="glyphicon glyphicon-unchecked"></span>&nbsp;' . $test .
-                             '</div>');
-                }
-                $this->write('</div>');
+            $this->write('<div class="sublist">');
+            foreach ($classResult->getTests() as $test) {
+                /* @var $test PHPUnit_Util_Testdox_ResultPrinter_HTML_TestResult */
+                $this->write(
+                    '<div class="list-item"><span class="glyphicon glyphicon-unchecked"></span>&nbsp;' . $test->getTestName() .
+                         '</div>');
             }
 
-            $this->write('</div>');
+            $this->write('</div></div>');
         }
 
         $this->write('</div>');
 
-        foreach ($this->classes as $name => $prettyName) {
+        foreach ($this->classes as $name => $classResult) {
             $this->write(
-                '<a id="' . $name . '"><h2 id="' . $name . '">' . $prettyName . '</h2></a><ul class="list-group">');
+                '<a id="' . $name . '"><h2 id="' . $name . '">' . $classResult->getClassName() . '</h2></a><ul class="list-group">');
 
-            if (count($this->failures[$name])) {
-                foreach ($this->failures[$name] as $test) {
-                    $this->write(
-                        '<li class="list-group-item list-hover"><span class="glyphicon glyphicon-unchecked alert-danger"></span>&nbsp;' .
-                             $test);
-                    $this->writeDuration($this->durations[$name][$test]);
-                    $this->writeError($name, $test);
-                    $this->write('</li>');
+            foreach($classResult->getTests() as $result) {
+                if ($result->hasErrors()) {
+                    $class = 'glyphicon-unchecked alert-danger';
                 }
-            }
-
-            if (count($this->successes[$name])) {
-                foreach ($this->successes[$name] as $test) {
-                    $this->write(
-                        '<li class="list-group-item"><span class="glyphicon glyphicon-check"></span>&nbsp;' . $test);
-                    $this->writeDuration($this->durations[$name][$test]);
-                    $this->write('</li>');
+                elseif ($result->wasSkipped()) {
+                    $class = 'glyphicon-unchecked alert-warning';
                 }
-            }
+                else {
+                    $class = 'glyphicon-check alert-success';
+                }
 
+                $this->write(
+                    '<li class="list-group-item list-hover"><span class="glyphicon ' . $class . '"></span>&nbsp;' .
+                    $result->getTestName());
+
+                $this->writeDuration($result->getDuration());
+                $this->writeError($result);
+                $this->write('</li>');
+            }
             $this->write('</ul>');
         }
 
         $this->write('</div></body></html>');
+        $this->copyBootstrapFiles();
     }
 
     private function writeDuration($duration)
@@ -286,25 +268,23 @@ EOR;
         $this->write(' <span class="badge badge-light">' . $duration . ' &#181;s</span>');
     }
 
-    private function writeError($name, $test)
+    private function writeError($result)
     {
-        $errors = $this->errors[$name][$test];
-
-        if (! count($errors))
+        if (! $result->hasErrors())
             return;
 
         $this->write('<div class="sublist">');
 
-        foreach ($errors as $error) {
+        foreach ($result->getErrors() as $error) {
             if ($error instanceof PHPUnit_Framework_AssertionFailedError) {
                 /* var $error PHPUnit_Framework_AssertionFailedError */
                 $this->write(
-                    '<div class="list-item"><strong>Assertion failed</strong> : ' . nl2br($error->getMessage()) . '</div>');
+                    '<div class="list-item"><strong>Assertion failed</strong> : ' . nl2br($error->getMessage()) .
+                         '</div>');
             }
             else {
-                $trace = $error->getTraceAsString();
-                $trace = $this->formatTrace(PHPUnit_Util_Filter::getFilteredStacktrace($error, false));
                 /* @var $error Exception */
+                $trace = $this->formatTrace(PHPUnit_Util_Filter::getFilteredStacktrace($error, false));
                 $this->write(
                     '<div class="list-item"><strong>Error</strong> : ' . $error->getMessage() .
                          '<div class="well well-sm"><strong>Stack trace</strong>' . nl2br($trace) . '</div></div>');
@@ -317,14 +297,12 @@ EOR;
     private function formatTrace(array $trace)
     {
         $traceBuffer = '';
+        $traceFormat  = PHP_EOL . '<strong>#%d</strong> %s(%d) : %s%s%s(%s)';
         $i = 0;
 
         foreach ($trace as $frame) {
-            $traceBuffer .= PHP_EOL;
-            $traceBuffer .= '<strong>#' . $i ++ . '</strong> ';
-            $traceBuffer .= $frame['file'];
-            $traceBuffer .= '(' . $frame['line'] . ') : ' . $frame['class'] . $frame['type'] . $frame['function'] . '(' .
-                 implode(', ', $this->getPrintableArgs($frame['args'])) . ')';
+            $traceBuffer .= sprintf($traceFormat, $i ++, $frame['file'], $frame['line'], $frame['class'], $frame['type'],
+                $frame['function'], implode(', ', $this->getPrintableArgs($frame['args'])));
         }
 
         return $traceBuffer;
@@ -366,5 +344,34 @@ EOR;
         }
 
         return $string;
+    }
+
+    private function copyBootstrapFiles($directory = null, $targetDirectory = null)
+    {
+        $directory = $directory ?  : dirname(__FILE__) . DIRECTORY_SEPARATOR . 'bootstrap';
+
+        $inDir = dir($directory);
+        $outDir = $targetDirectory ? $targetDirectory : dirname($this->outTarget) . DIRECTORY_SEPARATOR . 'bootstrap';
+
+        if (is_dir($outDir) != true) {
+            mkdir($outDir, 0777, true);
+        }
+
+        while ($file = $inDir->read()) {
+            if ($file == '..' || $file == '.') {
+                continue;
+            }
+            else {
+                $sourceFile = $directory . DIRECTORY_SEPARATOR . $file;
+                $destFile = $outDir . DIRECTORY_SEPARATOR . $file;
+
+                if (is_dir($sourceFile)) {
+                    $this->copyBootstrapFiles($sourceFile, $destFile);
+                }
+                else {
+                    copy($sourceFile, $destFile);
+                }
+            }
+        }
     }
 }
